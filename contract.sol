@@ -100,22 +100,10 @@ contract ExpirableToken is ERC20,ReentrancyGuard {
         return balance;
     }
 
-    function _reduceBalance(address account, uint256 amount, uint epochIdx) internal {
+    function _reduceBalance(address account, uint256 amount, uint idx) internal {
         require(balanceOf(account)>=amount, "Insufficient balance");
-        for (uint256 i = 0; i < _tokenBatches[account].length; i++) {
-            if (
-                block.timestamp < _tokenBatches[account][i].expiration &&
-                _tokenBatches[account][i].amount >= 0
-            ) {
-                // if (_tokenBatches[account][i].amount < amount) {
-                //     amount -= _tokenBatches[account][i].amount;
-                //     _tokenBatches[account][i].amount = 0;
-                // } else {
-                //     _tokenBatches[account][i].amount -= amount;
-                //     break;
-                // }
-            }
-        }
+        require(_tokenBatches[account][idx].amount >= amount, "Insufficient epoch balance");
+        _tokenBatches[account][idx].amount-=amount;
     }
 
     function isExpired(address account)public view returns (TokenBatch[] memory)
