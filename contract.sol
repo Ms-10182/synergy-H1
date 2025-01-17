@@ -38,6 +38,8 @@ contract ExpirableToken is ERC20,ReentrancyGuard {
         _owners.add(msg.sender);
     }
 
+
+
     /*
     @dev Adds new owners to the contract.
     @param newOwners The addresses of the new owners.
@@ -79,7 +81,10 @@ contract ExpirableToken is ERC20,ReentrancyGuard {
         require(owners.length > 0, "empty minter list");
         require(_owners.has(msg.sender), "DOES_NOT_HAVE_OWNER_ROLE");
         for (uint i = 0; i < owners.length; i++) {
-            _minters.remove(owners[i]);
+            if(owners[i]==msg.sender){
+                continue ;
+            }
+            _owners.remove(owners[i]);
         }
     }
 
