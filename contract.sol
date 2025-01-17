@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Roles.sol";
 
-contract ExpirableToken is ERC20, ReentrancyGuard {
+contract ExpirableToken is ERC20,ReentrancyGuard {
 
     // Struct to store token batches with amount and expiration time
     struct TokenBatch {
@@ -16,8 +16,10 @@ contract ExpirableToken is ERC20, ReentrancyGuard {
     // Mapping to store token batches for each address
     mapping(address => TokenBatch[]) private _tokenBatches;
     using Roles for Roles.Role;
+
     Roles.Role private _owners;
     Roles.Role private _minters;
+
 
     // Events to log various actions
     event TokensMinted(address indexed to, uint256 amount, uint256 expiration);
@@ -28,21 +30,15 @@ contract ExpirableToken is ERC20, ReentrancyGuard {
     event BalanceUpdated(address indexed user, uint newAmount);
     event TokensExpired(address indexed user, uint amount);
 
-    // Constructor to initialize the contract with name, symbol, minters, and owners
-    constructor(string memory name, string memory symbol, address[] memory minters, address[] memory owners) ERC20(name, symbol) {
-        _owners.add(msg.sender);
-        uint max = minters.length > owners.length ? minters.length : owners.length;
-        for (uint i = 0; i < max; i++) {
-            if (i < minters.length) {
-                _minters.add(minters[i]);
-            }
-            if (i < owners.length) {
-                _owners.add(owners[i]);
-            }
-        }
-        emit OwnerAdded(msg.sender, owners);
-        emit MinterAdded(msg.sender, minters);
+    function decimals() public view virtual override returns (uint8) {
+        return 0;
     }
+    // Constructor to initialize the contract with name, symbol, minters, and owners
+    constructor() ERC20("Synergy coin", "SGC") {
+        _owners.add(msg.sender);
+    }
+
+
 
     /*
     @dev Adds new owners to the contract.
@@ -79,6 +75,13 @@ contract ExpirableToken is ERC20, ReentrancyGuard {
         require(_owners.has(msg.sender), "DOES_NOT_HAVE_OWNER_ROLE");
         for (uint i = 0; i < minters.length; i++) {
             _minters.remove(minters[i]);
+        }
+    }
+    function removeOwners(address[] memory owners) external {
+        require(owners.length > 0, "empty minter list");
+        require(_owners.has(msg.sender), "DOES_NOT_HAVE_OWNER_ROLE");
+        for (uint i = 0; i < owners.length; i++) {
+            _minters.remove(owners[i]);
         }
     }
 
@@ -123,7 +126,7 @@ contract ExpirableToken is ERC20, ReentrancyGuard {
         require(amount > 0, "amount too low");
         require(balanceOf(msg.sender) > amount, "balance is low");
         _updateExpiredTokens(msg.sender);
-        require(_availableBalance(msg.sender) >= amount, "Insufficient balance");
+        // require(_availableBalance(msg.sender) >= amount, "Insufficient balance");
         (uint256 idx, bool isAvail) = getEarliestEpoch(msg.sender, amount);
         require(isAvail, "no epoch has valid amount");
         _reduceBalance(msg.sender, amount, idx);
@@ -146,7 +149,7 @@ contract ExpirableToken is ERC20, ReentrancyGuard {
         require(balanceOf(sender) > amount, "balance is low");
         _updateExpiredTokens(sender);
         _updateExpiredTokens(msg.sender);
-        require(_availableBalance(sender) >= amount, "Insufficient balance");
+        // require(_availableBalance(sender) >= amount, "Insufficient balance");
         (uint256 idx, bool isAvail) = getEarliestEpoch(sender, amount);
         require(isAvail, "No epoch has valid amount");
         _reduceBalance(sender, amount, idx);
@@ -179,22 +182,19 @@ contract ExpirableToken is ERC20, ReentrancyGuard {
         emit BalanceUpdated(account, balanceOf(account));
     }
 
+    function flushExpired(address account) external {
+        _updateExpiredTokens(account);
+        emit BalanceUpdated(account, balanceOf(account));
+
+    }
+
     /*
     @dev Internal function to get the available balance of non-expired tokens for a specified address.
     @param account The address to query the available balance of.
     @return The available balance of non-expired tokens.
     */
     function _availableBalance(address account) internal view returns (uint256) {
-        uint256 balance = 0;
-        for (uint256 i = 0; i < _tokenBatches[account].length; i++) {
-            if (block.timestamp < _tokenBatches[account][i].expiration) {
-                if (_tokenBatches[account][i].amount == 0) {
-                    continue;
-                }
-                balance += _tokenBatches[account][i].amount;
-            }
-        }
-        return balance;
+        return balanceOf(account);
     }
 
     /*
