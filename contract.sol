@@ -38,8 +38,6 @@ contract ExpirableToken is ERC20,ReentrancyGuard {
         _owners.add(msg.sender);
     }
 
-
-
     /*
     @dev Adds new owners to the contract.
     @param newOwners The addresses of the new owners.
